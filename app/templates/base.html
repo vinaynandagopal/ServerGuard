@@ -13,9 +13,9 @@
       <a href="/" {% if active == 'overview' %}class="active"{% endif %}>Overview</a>
       <a href="/services" {% if active == 'services' %}class="active"{% endif %}>Services</a>
       <a href="/processes" {% if active == 'processes' %}class="active"{% endif %}>Processes</a>
-      <span class="disabled">Alerts <small>soon</small></span>
+      <a href="/alerts" {% if active == 'alerts' %}class="active"{% endif %}>Alerts</a>
       <span class="disabled">Recovery <small>soon</small></span>
-      <span class="disabled">Settings <small>soon</small></span>
+      <a href="/settings" {% if active == 'settings' %}class="active"{% endif %}>Settings</a>
     </nav>
   </aside>
 

@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Settings - ServerGuard{% endblock %}
+
+{% block content %}
+    <header class="topbar">
+      <h1>Settings</h1>
+      <div class="topbar-right">
+        <span id="conn" class="pill pill-wait">Loading...</span>
+      </div>
+    </header>
+
+    <form id="settings-form">
+      <section class="panel">
+        <div class="panel-head"><h2>Alert thresholds</h2></div>
+        <p class="muted small">
+          An alert opens when usage reaches the value (inclusive). Warning must be lower than critical.
+        </p>
+        <div class="table-wrap">
+          <table class="table settings-table">
+            <thead>
+              <tr><th>Resource</th><th>Warning at (%)</th><th>Critical at (%)</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>CPU usage</td>
+                <td><input type="number" id="cpu_warning" min="0.1" max="100" step="0.1"></td>
+                <td><input type="number" id="cpu_critical" min="0.1" max="100" step="0.1"></td>
+              </tr>
+              <tr>
+                <td>Memory usage</td>
+                <td><input type="number" id="memory_warning" min="0.1" max="100" step="0.1"></td>
+                <td><input type="number" id="memory_critical" min="0.1" max="100" step="0.1"></td>
+              </tr>
+              <tr>
+                <td>Disk usage (/)</td>
+                <td><input type="number" id="disk_warning" min="0.1" max="100" step="0.1"></td>
+                <td><input type="number" id="disk_critical" min="0.1" max="100" step="0.1"></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><h2>Monitoring</h2></div>
+        <div class="controls">
+          <label>Check interval (seconds)
+            <input type="number" id="monitor_interval" min="2" max="60" step="1">
+          </label>
+        </div>
+        <p class="muted small">
+          Monitored services are managed on the <a href="/services">Services</a> page.
+          Automatic recovery settings arrive in the next phase.
+        </p>
+      </section>
+
+      <div class="controls form-actions">
+        <button type="submit">Save settings</button>
+        <button type="button" id="reset-btn">Load defaults</button>
+        <span id="settings-msg" class="small"></span>
+      </div>
+    </form>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/settings.js') }}"></script>
+{% endblock %}

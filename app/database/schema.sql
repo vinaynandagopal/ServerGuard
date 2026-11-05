@@ -42,3 +42,21 @@ CREATE TABLE IF NOT EXISTS recovery_logs (
     message      TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_recovery_timestamp ON recovery_logs(timestamp);
+
+-- At most ONE open incident per metric. The database itself prevents duplicates.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_alerts_one_open_per_metric
+    ON alerts(metric) WHERE status IN ('ACTIVE', 'ACKNOWLEDGED');
+
+CREATE TABLE IF NOT EXISTS settings (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL            -- JSON-encoded
+);
+
+-- At most ONE open incident per metric. The database itself prevents duplicates.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_alerts_one_open_per_metric
+    ON alerts(metric) WHERE status IN ('ACTIVE', 'ACKNOWLEDGED');
+
+CREATE TABLE IF NOT EXISTS settings (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL            -- JSON-encoded
+);

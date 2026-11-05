@@ -9,6 +9,8 @@ from werkzeug.exceptions import HTTPException
 from .database import db
 from .monitoring.processes import SORT_FIELDS, query_processes
 from .monitoring.services import systemd_available, validate_service_name
+from . import settings as app_settings
+from .alerts.alert_engine import evaluate_level, overall_status
 
 api = Blueprint("api", __name__, url_prefix="/api")
 
@@ -56,18 +58,43 @@ def metrics_current():
             503,
         )
 
+    cfg = app_settings.load(_db_path())
+    values = {
+        "cpu": _get(snap, "cpu", "usage_percent"),
+        "memory": _get(snap, "memory", "usage_percent"),
+        "disk": _get(snap, "disk", "primary", "usage_percent"),
+    }
+    levels = {
+        k: evaluate_level(v, cfg[f"{k}_warning"], cfg[f"{k}_critical"])
+        for k, v in values.items()
+    }
+    thresholds = {
+        k: {"warning": cfg[f"{k}_warning"], "critical": cfg[f"{k}_critical"]}
+        for k in values
+    }
+    open_alerts = db.list_open_alerts(_db_path())
+    services = db.list_services(_db_path())
+
     return jsonify(
         {
             "timestamp": snap["timestamp"],
             "hostname": _get(snap, "system", "hostname"),
-            "cpu_usage": _get(snap, "cpu", "usage_percent"),
-            "memory_usage": _get(snap, "memory", "usage_percent"),
-            "disk_usage": _get(snap, "disk", "primary", "usage_percent"),
+            "status": overall_status(levels, open_alerts),
+            "levels": levels,
+            "thresholds": thresholds,
+            "cpu_usage": values["cpu"],
+            "memory_usage": values["memory"],
+            "disk_usage": values["disk"],
             "network_sent": _get(snap, "network", "bytes_sent"),
             "network_received": _get(snap, "network", "bytes_received"),
             "upload_bytes_per_sec": _get(snap, "network", "upload_bytes_per_sec"),
             "download_bytes_per_sec": _get(snap, "network", "download_bytes_per_sec"),
             "uptime": _get(snap, "system", "uptime_human"),
+            "active_alerts": len(open_alerts),
+            "services_running": sum(1 for s in services if s["last_status"] == "active"),
+            "services_stopped": sum(
+                1 for s in services if s["last_status"] in db.DOWN_STATES
+            ),
             "errors": snap["errors"],
         }
     )

@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Alerts - ServerGuard{% endblock %}
+
+{% block content %}
+    <header class="topbar">
+      <h1>Alerts</h1>
+      <div class="topbar-right">
+        <a class="button" href="/api/reports/export" download>Export CSV</a>
+        <span id="conn" class="pill pill-wait">Connecting...</span>
+      </div>
+    </header>
+
+    <section class="cards cards-small">
+      <article class="card"><h2>Total</h2><div class="value" id="sum-total">-</div></article>
+      <article class="card state-crit"><h2>Critical</h2><div class="value" id="sum-critical">-</div></article>
+      <article class="card state-warn"><h2>Active</h2><div class="value" id="sum-active">-</div></article>
+      <article class="card state-ok"><h2>Resolved</h2><div class="value" id="sum-resolved">-</div></article>
+    </section>
+
+    <section class="panel">
+      <div class="controls">
+        <label>Show
+          <select id="status-filter">
+            <option value="active">Active</option>
+            <option value="resolved">Resolved</option>
+            <option value="all">All (history)</option>
+          </select>
+        </label>
+        <label>Severity
+          <select id="severity-filter">
+            <option value="all">All</option>
+            <option value="critical">Critical</option>
+            <option value="warning">Warning</option>
+          </select>
+        </label>
+      </div>
+      <p id="alert-msg" class="small"></p>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Time</th><th>Severity</th><th>Source</th><th>Message</th>
+              <th>Status</th><th>Resolved</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="alerts-body"></tbody>
+        </table>
+      </div>
+      <p class="muted small">
+        One incident is kept per condition until it clears, so a continuing problem does not create duplicate alerts.
+        "Active" includes acknowledged incidents that have not cleared yet.
+      </p>
+    </section>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/alerts.js') }}"></script>
+{% endblock %}

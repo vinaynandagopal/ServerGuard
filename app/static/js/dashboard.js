@@ -3,22 +3,15 @@
 const CARD_INTERVAL_MS = 4000;
 const CHART_INTERVAL_MS = 10000;
 
-// PROVISIONAL thresholds for coloring only. Phase 7 moves this logic into the
-// backend alert engine, where thresholds become configurable.
-const THRESHOLDS = {
-  cpu: { warn: 70, crit: 85 },
-  memory: { warn: 75, crit: 90 },
-  disk: { warn: 80, crit: 90 },
-};
-
 const $ = (id) => document.getElementById(id);
 
-function stateFor(kind, value) {
-  if (value === null || value === undefined) return "wait";
-  const t = THRESHOLDS[kind];
-  if (value >= t.crit) return "crit";
-  if (value >= t.warn) return "warn";
-  return "ok";
+// The backend decides the level (NORMAL / WARNING / CRITICAL / UNKNOWN) using
+// the thresholds saved on the Settings page. The browser only picks a color.
+const LEVEL_STATE = { NORMAL: "ok", WARNING: "warn", CRITICAL: "crit" };
+const BANNER_TEXT = { ok: "HEALTHY", warn: "WARNING", crit: "CRITICAL" };
+
+function stateFor(level) {
+  return Object.hasOwn(LEVEL_STATE, level) ? LEVEL_STATE[level] : "wait";
 }
 
 function formatBytes(value) {
@@ -29,12 +22,13 @@ function formatBytes(value) {
   return n.toFixed(i === 0 ? 0 : 1) + " " + units[i];
 }
 
-function setCard(cardId, valueId, barId, kind, value) {
-  const state = stateFor(kind, value);
-  $(cardId).className = "card state-" + state;
+function setResource(cardId, valueId, barId, subId, level, value, threshold) {
+  $(cardId).className = "card state-" + stateFor(level);
   $(valueId).textContent = value === null || value === undefined ? "-" : value.toFixed(1) + "%";
   $(barId).style.width = (value || 0) + "%";
-  return state;
+  $(subId).textContent = threshold
+    ? "Warning " + threshold.warning + "% / Critical " + threshold.critical + "%"
+    : "\u00a0";
 }
 
 function setConnection(ok, text) {
@@ -43,17 +37,10 @@ function setConnection(ok, text) {
   el.className = "pill " + (ok ? "pill-ok" : "pill-bad");
 }
 
-function setBanner(states) {
-  const banner = $("banner"), label = $("banner-text");
-  let cls = "wait", text = "WAITING FOR DATA";
-  const known = states.filter((s) => s !== "wait");
-  if (known.length) {
-    if (known.includes("crit")) { cls = "crit"; text = "CRITICAL"; }
-    else if (known.includes("warn")) { cls = "warn"; text = "WARNING"; }
-    else { cls = "ok"; text = "HEALTHY"; }
-  }
-  banner.className = "banner banner-" + cls;
-  label.textContent = text;
+function setBanner(status) {
+  const state = stateFor(status);
+  $("banner").className = "banner banner-" + state;
+  $("banner-text").textContent = BANNER_TEXT[state] || "WAITING FOR DATA";
 }
 
 async function fetchJson(url) {
@@ -71,10 +58,13 @@ async function refreshCards() {
     setConnection(true, "Live");
     $("hostname").textContent = "Server: " + (body.hostname || "-");
 
-    const s1 = setCard("card-cpu", "cpu-value", "cpu-bar", "cpu", body.cpu_usage);
-    const s2 = setCard("card-memory", "mem-value", "mem-bar", "memory", body.memory_usage);
-    const s3 = setCard("card-disk", "disk-value", "disk-bar", "disk", body.disk_usage);
-    setBanner([s1, s2, s3]);
+    setResource("card-cpu", "cpu-value", "cpu-bar", "cpu-sub",
+      body.levels.cpu, body.cpu_usage, body.thresholds.cpu);
+    setResource("card-memory", "mem-value", "mem-bar", "mem-sub",
+      body.levels.memory, body.memory_usage, body.thresholds.memory);
+    setResource("card-disk", "disk-value", "disk-bar", "disk-sub",
+      body.levels.disk, body.disk_usage, body.thresholds.disk);
+    setBanner(body.status);
 
     $("net-down").textContent = formatBytes(body.download_bytes_per_sec) + "/s";
     $("net-up").textContent = formatBytes(body.upload_bytes_per_sec) + "/s";
@@ -82,6 +72,11 @@ async function refreshCards() {
       "Total: " + formatBytes(body.network_received) + " in / " + formatBytes(body.network_sent) + " out";
     $("uptime").textContent = body.uptime || "-";
     $("system-sub").textContent = "Updated " + new Date(body.timestamp).toLocaleTimeString();
+
+    $("alerts-value").textContent = body.active_alerts;
+    $("card-alerts").className = "card state-" + (body.active_alerts > 0 ? "warn" : "ok");
+    $("svc-running").textContent = body.services_running;
+    $("svc-stopped").textContent = body.services_stopped;
   } catch (err) {
     setConnection(false, "Connection lost");
   }

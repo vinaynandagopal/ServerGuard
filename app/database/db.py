@@ -189,3 +189,143 @@ def record_service_status(db_path, service_id, status, checked_at):
                 (checked_at, service_id),
             )
         return {"previous": previous, "changed": changed, "new_failure": new_failure}
+
+
+# ----- alerts ---------------------------------------------------------------
+ALERT_FIELDS = "id, timestamp, metric, severity, message, status, resolved_at"
+# Constant SQL fragment (never built from user input).
+_OPEN_SQL = "status IN ('ACTIVE', 'ACKNOWLEDGED')"
+
+
+def create_alert(db_path, timestamp, metric, severity, message):
+    """Open a new incident.
+
+    The partial unique index allows one open incident per metric, so a second
+    one raises sqlite3.IntegrityError.
+    """
+    with connect(db_path) as conn:
+        cursor = conn.execute(
+            "INSERT INTO alerts (timestamp, metric, severity, message) "
+            "VALUES (?, ?, ?, ?)",
+            (timestamp, metric, severity, message),
+        )
+        return cursor.lastrowid
+
+
+def get_alert(db_path, alert_id):
+    with connect(db_path) as conn:
+        row = conn.execute(
+            f"SELECT {ALERT_FIELDS} FROM alerts WHERE id = ?", (alert_id,)
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def list_open_alerts(db_path):
+    """Incidents that are not resolved (active or acknowledged), newest first."""
+    with connect(db_path) as conn:
+        rows = conn.execute(
+            f"SELECT {ALERT_FIELDS} FROM alerts WHERE {_OPEN_SQL} "
+            "ORDER BY timestamp DESC, id DESC"
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def update_alert(db_path, alert_id, severity, message, reactivate=False):
+    """Change severity/message of an open incident. Returns True if updated."""
+    status_sql = ", status = 'ACTIVE'" if reactivate else ""
+    with connect(db_path) as conn:
+        cursor = conn.execute(
+            f"UPDATE alerts SET severity = ?, message = ?{status_sql} "
+            f"WHERE id = ? AND {_OPEN_SQL}",
+            (severity, message, alert_id),
+        )
+        return cursor.rowcount > 0
+
+
+def resolve_alert(db_path, alert_id, resolved_at):
+    """Mark an open incident resolved. Returns True if a row changed."""
+    with connect(db_path) as conn:
+        cursor = conn.execute(
+            f"UPDATE alerts SET status = 'RESOLVED', resolved_at = ? "
+            f"WHERE id = ? AND {_OPEN_SQL}",
+            (resolved_at, alert_id),
+        )
+        return cursor.rowcount > 0
+
+
+def acknowledge_alert(db_path, alert_id):
+    """Returns 'ok', 'not_found' or 'resolved'. Acknowledging twice is fine."""
+    with connect(db_path) as conn:
+        row = conn.execute(
+            "SELECT status FROM alerts WHERE id = ?", (alert_id,)
+        ).fetchone()
+        if row is None:
+            return "not_found"
+        if row["status"] == "RESOLVED":
+            return "resolved"
+        conn.execute(
+            "UPDATE alerts SET status = 'ACKNOWLEDGED' WHERE id = ?", (alert_id,)
+        )
+        return "ok"
+
+
+def list_alerts(db_path, status="active", severity="all", limit=100):
+    """status: active (open) | resolved | all.  severity: all | warning | critical.
+
+    limit=None returns everything (used by the CSV export).
+    """
+    clauses, params = [], []
+    if status == "active":
+        clauses.append(_OPEN_SQL)
+    elif status == "resolved":
+        clauses.append("status = 'RESOLVED'")
+    elif status != "all":
+        raise ValueError(f"unknown status filter: {status}")
+
+    if severity in ("warning", "critical"):
+        clauses.append("severity = ?")
+        params.append(severity.upper())
+    elif severity != "all":
+        raise ValueError(f"unknown severity filter: {severity}")
+
+    sql = f"SELECT {ALERT_FIELDS} FROM alerts"
+    if clauses:
+        sql += " WHERE " + " AND ".join(clauses)
+    sql += " ORDER BY timestamp DESC, id DESC"
+    if limit is not None:
+        sql += " LIMIT ?"
+        params.append(int(limit))
+
+    with connect(db_path) as conn:
+        return [dict(r) for r in conn.execute(sql, params).fetchall()]
+
+
+def alert_counts(db_path):
+    """'active' means open incidents, which includes acknowledged ones."""
+    with connect(db_path) as conn:
+        row = conn.execute(
+            "SELECT COUNT(*) AS total, "
+            "COALESCE(SUM(severity = 'CRITICAL'), 0) AS critical, "
+            "COALESCE(SUM(status IN ('ACTIVE', 'ACKNOWLEDGED')), 0) AS active, "
+            "COALESCE(SUM(status = 'ACKNOWLEDGED'), 0) AS acknowledged, "
+            "COALESCE(SUM(status = 'RESOLVED'), 0) AS resolved "
+            "FROM alerts"
+        ).fetchone()
+    return dict(row)
+
+
+# ----- settings -------------------------------------------------------------
+def get_all_settings(db_path):
+    with connect(db_path) as conn:
+        rows = conn.execute("SELECT key, value FROM settings").fetchall()
+    return {r["key"]: r["value"] for r in rows}
+
+
+def save_settings(db_path, mapping):
+    """Upsert key -> JSON text pairs in one transaction."""
+    with connect(db_path) as conn:
+        conn.executemany(
+            "INSERT INTO settings (key, value) VALUES (?, ?) "
+            "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            list(mapping.items()),
+        )
