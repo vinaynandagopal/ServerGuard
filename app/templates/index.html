@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ServerGuard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand">SERVERGUARD</div>
+    <nav>
+      <a class="active" href="/">Overview</a>
+      <span class="disabled">Services <small>soon</small></span>
+      <span class="disabled">Processes <small>soon</small></span>
+      <span class="disabled">Alerts <small>soon</small></span>
+      <span class="disabled">Recovery <small>soon</small></span>
+      <span class="disabled">Settings <small>soon</small></span>
+    </nav>
+  </aside>
+
+  <main class="content">
+    <header class="topbar">
+      <h1>System Overview</h1>
+      <div class="topbar-right">
+        <span id="hostname" class="muted">Server: -</span>
+        <span id="conn" class="pill pill-wait">Connecting...</span>
+      </div>
+    </header>
+
+    <section id="banner" class="banner banner-wait">
+      <span class="banner-label">Server status</span>
+      <strong id="banner-text">WAITING FOR DATA</strong>
+    </section>
+
+    <section class="cards">
+      <article class="card" id="card-cpu">
+        <h2>CPU</h2>
+        <div class="value" id="cpu-value">-</div>
+        <div class="bar"><div class="bar-fill" id="cpu-bar"></div></div>
+        <div class="sub" id="cpu-sub">&nbsp;</div>
+      </article>
+      <article class="card" id="card-memory">
+        <h2>Memory</h2>
+        <div class="value" id="mem-value">-</div>
+        <div class="bar"><div class="bar-fill" id="mem-bar"></div></div>
+        <div class="sub" id="mem-sub">&nbsp;</div>
+      </article>
+      <article class="card" id="card-disk">
+        <h2>Disk (/)</h2>
+        <div class="value" id="disk-value">-</div>
+        <div class="bar"><div class="bar-fill" id="disk-bar"></div></div>
+        <div class="sub" id="disk-sub">&nbsp;</div>
+      </article>
+      <article class="card">
+        <h2>Network</h2>
+        <div class="net-row"><span class="muted">Down</span><strong id="net-down">-</strong></div>
+        <div class="net-row"><span class="muted">Up</span><strong id="net-up">-</strong></div>
+        <div class="sub" id="net-sub">&nbsp;</div>
+      </article>
+      <article class="card">
+        <h2>Uptime</h2>
+        <div class="value value-small" id="uptime">-</div>
+        <div class="sub" id="system-sub">&nbsp;</div>
+      </article>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Resource utilization</h2>
+        <div class="range" id="range">
+          <button data-range="5m">5m</button>
+          <button data-range="15m" class="active">15m</button>
+          <button data-range="1h">1h</button>
+          <button data-range="24h">24h</button>
+        </div>
+      </div>
+      <div class="charts">
+        <div class="chart-box"><h3>CPU %</h3><canvas id="cpu-chart"></canvas></div>
+        <div class="chart-box"><h3>Memory %</h3><canvas id="mem-chart"></canvas></div>
+      </div>
+      <p id="chart-note" class="muted small"></p>
+    </section>
+  </main>
+
+  <script src="{{ url_for('static', filename='js/chart.umd.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+</body>
+</html>

@@ -2,7 +2,7 @@
 
 import atexit
 
-from flask import Flask, jsonify
+from flask import Flask, render_template
 
 from .config import Config
 from .database import db
@@ -39,17 +39,7 @@ def create_app(config=None, start_collector=True):
 
     @app.get("/")
     def index():
-        # Temporary landing response; Phase 5 replaces this with the dashboard.
-        return jsonify(
-            name="ServerGuard",
-            message="API is running. Dashboard arrives in Phase 5.",
-            endpoints=[
-                "/api/health",
-                "/api/metrics/current",
-                "/api/metrics/detail",
-                "/api/metrics/history?range=15m",
-            ],
-        )
+        return render_template("index.html")
 
     if start_collector:
         collector.start()
