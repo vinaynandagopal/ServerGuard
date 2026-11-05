@@ -1,11 +1,14 @@
 """REST API routes. All responses are JSON."""
 
+import sqlite3
 from datetime import datetime, timezone
 
 from flask import Blueprint, current_app, jsonify, request
 from werkzeug.exceptions import HTTPException
 
 from .database import db
+from .monitoring.processes import SORT_FIELDS, query_processes
+from .monitoring.services import systemd_available, validate_service_name
 
 api = Blueprint("api", __name__, url_prefix="/api")
 
@@ -102,6 +105,122 @@ def metrics_history():
         )
     points = db.get_metrics_history(current_app.config["DATABASE_PATH"], RANGES[key])
     return jsonify({"range": key, "count": len(points), "points": points})
+
+
+def _db_path():
+    return current_app.config["DATABASE_PATH"]
+
+
+def _service_view(service):
+    return {
+        "id": service["id"],
+        "name": service["service_name"],
+        "enabled": service["enabled"],
+        "auto_recovery": service["auto_recovery"],
+        "status": service["last_status"] or "pending",
+        "last_checked": service["last_checked"],
+        "last_status_change": service["last_status_change"],
+        "failure_count": service["failure_count"],
+    }
+
+
+@api.get("/services")
+def services_list():
+    """Monitored services with their last saved status (no systemctl call here)."""
+    items = [_service_view(s) for s in db.list_services(_db_path())]
+    summary = {"running": 0, "stopped": 0, "not_installed": 0, "other": 0}
+    for item in items:
+        status = item["status"]
+        if status == "active":
+            summary["running"] += 1
+        elif status in ("inactive", "failed"):
+            summary["stopped"] += 1
+        elif status == "not-installed":
+            summary["not_installed"] += 1
+        else:
+            summary["other"] += 1
+    return jsonify(
+        systemd_available=systemd_available(), summary=summary, services=items
+    )
+
+
+@api.post("/services")
+def services_add():
+    """Start monitoring a service (read-only). Does not enable recovery."""
+    payload = request.get_json(silent=True)
+    name = payload.get("service_name") if isinstance(payload, dict) else None
+    if not validate_service_name(name):
+        return (
+            jsonify(
+                error="bad_request",
+                message=(
+                    "service_name must be 1-100 characters: letters, digits and "
+                    "@ _ . : - only, starting with a letter or digit."
+                ),
+            ),
+            400,
+        )
+    try:
+        service_id = db.add_service(_db_path(), name)
+    except sqlite3.IntegrityError:
+        return jsonify(error="conflict", message=f"'{name}' is already monitored."), 409
+
+    # One immediate check so the new row doesn't sit on "pending".
+    current_app.extensions["service_monitor"].check_one(
+        db.get_service(_db_path(), service_id)
+    )
+    return jsonify(_service_view(db.get_service(_db_path(), service_id))), 201
+
+
+@api.delete("/services/<int:service_id>")
+def services_delete(service_id):
+    if not db.delete_service(_db_path(), service_id):
+        return jsonify(error="not_found", message="No such service."), 404
+    return jsonify(deleted=service_id)
+
+
+@api.get("/processes")
+def processes_list():
+    """Running processes. ?sort=cpu|memory|pid|name &order=asc|desc &search= &limit="""
+    sort = request.args.get("sort", "cpu")
+    order = request.args.get("order", "desc")
+    search = request.args.get("search", "")
+
+    if sort not in SORT_FIELDS:
+        return jsonify(error="bad_request",
+                       message="sort must be one of: " + ", ".join(SORT_FIELDS)), 400
+    if order not in ("asc", "desc"):
+        return jsonify(error="bad_request", message="order must be asc or desc."), 400
+    if len(search) > 100:
+        return jsonify(error="bad_request",
+                       message="search must be at most 100 characters."), 400
+    try:
+        limit = int(request.args.get("limit", "50"))
+    except ValueError:
+        return jsonify(error="bad_request", message="limit must be an integer."), 400
+    if not 1 <= limit <= 500:
+        return jsonify(error="bad_request",
+                       message="limit must be between 1 and 500."), 400
+
+    processes, updated = current_app.extensions["process_sampler"].get()
+    if updated is None:
+        return (
+            jsonify(error="warming_up",
+                    message="No process data yet. Try again in a few seconds."),
+            503,
+        )
+
+    matched = query_processes(processes, sort, order, search)
+    returned = matched[:limit]
+    return jsonify(
+        {
+            "updated": updated,
+            "total_processes": len(processes),
+            "matched": len(matched),
+            "returned": len(returned),
+            "processes": returned,
+        }
+    )
 
 
 def register_error_handlers(app):

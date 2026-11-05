@@ -1,25 +1,7 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ServerGuard</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-</head>
-<body>
-  <aside class="sidebar">
-    <div class="brand">SERVERGUARD</div>
-    <nav>
-      <a class="active" href="/">Overview</a>
-      <span class="disabled">Services <small>soon</small></span>
-      <span class="disabled">Processes <small>soon</small></span>
-      <span class="disabled">Alerts <small>soon</small></span>
-      <span class="disabled">Recovery <small>soon</small></span>
-      <span class="disabled">Settings <small>soon</small></span>
-    </nav>
-  </aside>
+{% extends "base.html" %}
+{% block title %}ServerGuard{% endblock %}
 
-  <main class="content">
+{% block content %}
     <header class="topbar">
       <h1>System Overview</h1>
       <div class="topbar-right">
@@ -81,9 +63,9 @@
       </div>
       <p id="chart-note" class="muted small"></p>
     </section>
-  </main>
+{% endblock %}
 
+{% block scripts %}
   <script src="{{ url_for('static', filename='js/chart.umd.min.js') }}"></script>
   <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
-</body>
-</html>
+{% endblock %}

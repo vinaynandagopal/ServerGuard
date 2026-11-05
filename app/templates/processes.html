@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Processes - ServerGuard{% endblock %}
+
+{% block content %}
+    <header class="topbar">
+      <h1>Processes</h1>
+      <div class="topbar-right">
+        <span id="proc-updated" class="muted small"></span>
+        <span id="conn" class="pill pill-wait">Connecting...</span>
+      </div>
+    </header>
+
+    <section class="panel">
+      <div class="controls">
+        <input id="search" type="search" maxlength="100" autocomplete="off"
+               placeholder="Search name, user or PID">
+        <label>Sort by
+          <select id="sort">
+            <option value="cpu">CPU</option>
+            <option value="memory">Memory</option>
+            <option value="pid">PID</option>
+            <option value="name">Name</option>
+          </select>
+        </label>
+        <label>Order
+          <select id="order">
+            <option value="desc">Highest first</option>
+            <option value="asc">Lowest first</option>
+          </select>
+        </label>
+        <label>Show
+          <select id="limit">
+            <option value="25">25</option>
+            <option value="50" selected>50</option>
+            <option value="100">100</option>
+          </select>
+        </label>
+      </div>
+      <p id="proc-note" class="muted small"></p>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>PID</th><th>Process</th><th>User</th>
+              <th class="num">CPU %</th><th class="num">Memory %</th><th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="proc-body"></tbody>
+        </table>
+      </div>
+      <p class="muted small">
+        Read-only view. CPU % is the share of the whole machine (all cores), so 100% means every core is busy.
+      </p>
+    </section>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/processes.js') }}"></script>
+{% endblock %}

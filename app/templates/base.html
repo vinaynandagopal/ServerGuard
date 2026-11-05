@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}ServerGuard{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand">SERVERGUARD</div>
+    <nav>
+      <a href="/" {% if active == 'overview' %}class="active"{% endif %}>Overview</a>
+      <a href="/services" {% if active == 'services' %}class="active"{% endif %}>Services</a>
+      <a href="/processes" {% if active == 'processes' %}class="active"{% endif %}>Processes</a>
+      <span class="disabled">Alerts <small>soon</small></span>
+      <span class="disabled">Recovery <small>soon</small></span>
+      <span class="disabled">Settings <small>soon</small></span>
+    </nav>
+  </aside>
+
+  <main class="content">
+    {% block content %}{% endblock %}
+  </main>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>

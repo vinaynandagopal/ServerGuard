@@ -14,3 +14,6 @@ class Config:
     )
     DB_SAVE_INTERVAL = float(os.environ.get("SERVERGUARD_DB_SAVE_INTERVAL", "10"))
     RETENTION_DAYS = int(os.environ.get("SERVERGUARD_RETENTION_DAYS", "7"))
+    SERVICE_CHECK_INTERVAL = float(os.environ.get("SERVERGUARD_SERVICE_INTERVAL", "10"))
+    # Seeded only when the services table is empty. Recovery is off for all.
+    DEFAULT_SERVICES = ["ssh", "cron", "nginx", "docker"]

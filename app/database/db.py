@@ -25,6 +25,21 @@ def connect(db_path):
         conn.close()
 
 
+# Columns added after the first release. CREATE TABLE IF NOT EXISTS never
+# alters an existing table, so older databases are upgraded here.
+SERVICE_COLUMNS = {
+    "last_status_change": "TEXT",
+    "failure_count": "INTEGER NOT NULL DEFAULT 0",
+}
+
+
+def _migrate(conn):
+    existing = {row["name"] for row in conn.execute("PRAGMA table_info(services)")}
+    for column, ddl in SERVICE_COLUMNS.items():
+        if column not in existing:
+            conn.execute(f"ALTER TABLE services ADD COLUMN {column} {ddl}")
+
+
 def init_db(db_path):
     """Create the database file and tables if they don't exist."""
     directory = os.path.dirname(os.path.abspath(db_path))
@@ -33,6 +48,7 @@ def init_db(db_path):
         schema = f.read()
     with connect(db_path) as conn:
         conn.executescript(schema)
+        _migrate(conn)
 
 
 # ----- metrics --------------------------------------------------------------
@@ -88,3 +104,88 @@ def prune_metrics(db_path, retention_days, now=None):
     with connect(db_path) as conn:
         cursor = conn.execute("DELETE FROM metrics WHERE timestamp < ?", (cutoff,))
         return cursor.rowcount
+
+
+# ----- services -------------------------------------------------------------
+SERVICE_FIELDS = (
+    "id, service_name, enabled, auto_recovery, last_status, "
+    "last_checked, last_status_change, failure_count"
+)
+DOWN_STATES = ("inactive", "failed")
+
+
+def _service_dict(row):
+    data = dict(row)
+    data["enabled"] = bool(data["enabled"])
+    data["auto_recovery"] = bool(data["auto_recovery"])
+    return data
+
+
+def add_service(db_path, name):
+    """Add a monitored service. Raises sqlite3.IntegrityError if it exists."""
+    with connect(db_path) as conn:
+        cursor = conn.execute(
+            "INSERT INTO services (service_name) VALUES (?)", (name,)
+        )
+        return cursor.lastrowid
+
+
+def count_services(db_path):
+    with connect(db_path) as conn:
+        return conn.execute("SELECT COUNT(*) FROM services").fetchone()[0]
+
+
+def list_services(db_path):
+    with connect(db_path) as conn:
+        rows = conn.execute(
+            f"SELECT {SERVICE_FIELDS} FROM services ORDER BY service_name"
+        ).fetchall()
+    return [_service_dict(r) for r in rows]
+
+
+def get_service(db_path, service_id):
+    with connect(db_path) as conn:
+        row = conn.execute(
+            f"SELECT {SERVICE_FIELDS} FROM services WHERE id = ?", (service_id,)
+        ).fetchone()
+    return _service_dict(row) if row else None
+
+
+def delete_service(db_path, service_id):
+    """Returns True if a row was deleted."""
+    with connect(db_path) as conn:
+        cursor = conn.execute("DELETE FROM services WHERE id = ?", (service_id,))
+        return cursor.rowcount > 0
+
+
+def record_service_status(db_path, service_id, status, checked_at):
+    """Store a check result and update change/failure tracking.
+
+    A *failure* is only counted on a transition from 'active' to a down state,
+    so a service that stays down is not counted again on every check.
+    Returns None if the service no longer exists.
+    """
+    with connect(db_path) as conn:
+        row = conn.execute(
+            "SELECT last_status FROM services WHERE id = ?", (service_id,)
+        ).fetchone()
+        if row is None:
+            return None
+
+        previous = row["last_status"]
+        changed = previous != status
+        new_failure = previous == "active" and status in DOWN_STATES
+
+        if changed:
+            conn.execute(
+                "UPDATE services SET last_status = ?, last_checked = ?, "
+                "last_status_change = ?, failure_count = failure_count + ? "
+                "WHERE id = ?",
+                (status, checked_at, checked_at, 1 if new_failure else 0, service_id),
+            )
+        else:
+            conn.execute(
+                "UPDATE services SET last_checked = ? WHERE id = ?",
+                (checked_at, service_id),
+            )
+        return {"previous": previous, "changed": changed, "new_failure": new_failure}

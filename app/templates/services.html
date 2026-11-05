@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Services - ServerGuard{% endblock %}
+
+{% block content %}
+    <header class="topbar">
+      <h1>Services</h1>
+      <div class="topbar-right">
+        <span id="conn" class="pill pill-wait">Connecting...</span>
+      </div>
+    </header>
+
+    <section id="systemd-warning" class="banner banner-warn" hidden>
+      <strong>systemd is not available here.</strong>
+      <span class="muted">Service status cannot be read, so nothing is reported as running.</span>
+    </section>
+
+    <section class="cards cards-small">
+      <article class="card state-ok"><h2>Running</h2><div class="value" id="sum-running">-</div></article>
+      <article class="card state-crit"><h2>Stopped</h2><div class="value" id="sum-stopped">-</div></article>
+      <article class="card"><h2>Not installed</h2><div class="value" id="sum-missing">-</div></article>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Monitored services</h2>
+        <form id="add-form" class="inline-form">
+          <input id="add-name" type="text" maxlength="100" autocomplete="off"
+                 placeholder="service name, e.g. nginx">
+          <button type="submit">Add</button>
+        </form>
+      </div>
+      <p id="form-msg" class="small"></p>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Service</th><th>Status</th><th>Last status change</th>
+              <th class="num">Failures</th><th>Auto recovery</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="services-body"></tbody>
+        </table>
+      </div>
+      <p class="muted small">
+        Monitoring is read-only. Automatic recovery arrives in a later phase and is off for every service.
+      </p>
+    </section>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/services.js') }}"></script>
+{% endblock %}

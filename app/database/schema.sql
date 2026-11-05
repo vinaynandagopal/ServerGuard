@@ -28,7 +28,9 @@ CREATE TABLE IF NOT EXISTS services (
     enabled       INTEGER NOT NULL DEFAULT 1,
     auto_recovery INTEGER NOT NULL DEFAULT 0,   -- disabled by default
     last_status   TEXT,
-    last_checked  TEXT
+    last_checked  TEXT,
+    last_status_change TEXT,
+    failure_count INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS recovery_logs (
