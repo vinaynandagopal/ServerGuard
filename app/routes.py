@@ -5,6 +5,8 @@ from datetime import datetime, timezone
 from flask import Blueprint, current_app, jsonify, request
 from werkzeug.exceptions import HTTPException
 
+from .database import db
+
 api = Blueprint("api", __name__, url_prefix="/api")
 
 
@@ -81,6 +83,25 @@ def metrics_detail():
             503,
         )
     return jsonify(snap)
+
+
+RANGES = {"5m": 5, "15m": 15, "1h": 60, "24h": 1440}
+
+
+@api.get("/metrics/history")
+def metrics_history():
+    """Stored metrics for charts. ?range=5m|15m|1h|24h (default 15m)."""
+    key = request.args.get("range", "15m")
+    if key not in RANGES:
+        return (
+            jsonify(
+                error="bad_request",
+                message="range must be one of: " + ", ".join(RANGES),
+            ),
+            400,
+        )
+    points = db.get_metrics_history(current_app.config["DATABASE_PATH"], RANGES[key])
+    return jsonify({"range": key, "count": len(points), "points": points})
 
 
 def register_error_handlers(app):

@@ -37,8 +37,19 @@ SAMPLE = {
 }
 
 
+@pytest.fixture(autouse=True)
+def _temp_db(tmp_path, monkeypatch):
+    """Every API test gets its own throwaway database file."""
+    monkeypatch.setattr("tests.test_api.DB_FILE", str(tmp_path / "test.db"), raising=False)
+
+
+DB_FILE = None
+
+
 def make_client(collector):
-    app = create_app({"TESTING": True}, start_collector=False)
+    app = create_app(
+        {"TESTING": True, "DATABASE_PATH": DB_FILE}, start_collector=False
+    )
     app.extensions["collector"] = collector
     return app.test_client()
 
