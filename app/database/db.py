@@ -329,3 +329,59 @@ def save_settings(db_path, mapping):
             "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
             list(mapping.items()),
         )
+
+
+# ----- recovery -------------------------------------------------------------
+def set_auto_recovery(db_path, service_id, enabled):
+    """Returns True if the service exists."""
+    with connect(db_path) as conn:
+        cursor = conn.execute(
+            "UPDATE services SET auto_recovery = ? WHERE id = ?",
+            (1 if enabled else 0, service_id),
+        )
+        return cursor.rowcount > 0
+
+
+def add_recovery_log(db_path, service_name, timestamp, action, result, message):
+    """result must be SUCCESS or FAILURE (enforced by a CHECK constraint)."""
+    with connect(db_path) as conn:
+        cursor = conn.execute(
+            "INSERT INTO recovery_logs "
+            "(service_name, timestamp, action, result, message) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (service_name, timestamp, action, result, message),
+        )
+        return cursor.lastrowid
+
+
+def list_recovery_logs(db_path, limit=100):
+    with connect(db_path) as conn:
+        rows = conn.execute(
+            "SELECT id, service_name, timestamp, action, result, message "
+            "FROM recovery_logs ORDER BY timestamp DESC, id DESC LIMIT ?",
+            (int(limit),),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def recent_attempts(db_path, service_name, action, since):
+    """Timestamps (newest first) of attempts at or after `since`."""
+    with connect(db_path) as conn:
+        rows = conn.execute(
+            "SELECT timestamp FROM recovery_logs "
+            "WHERE service_name = ? AND action = ? AND timestamp >= ? "
+            "ORDER BY timestamp DESC",
+            (service_name, action, since),
+        ).fetchall()
+    return [r["timestamp"] for r in rows]
+
+
+def recovery_counts(db_path):
+    with connect(db_path) as conn:
+        row = conn.execute(
+            "SELECT COUNT(*) AS total, "
+            "COALESCE(SUM(result = 'SUCCESS'), 0) AS success, "
+            "COALESCE(SUM(result = 'FAILURE'), 0) AS failure "
+            "FROM recovery_logs"
+        ).fetchone()
+    return dict(row)

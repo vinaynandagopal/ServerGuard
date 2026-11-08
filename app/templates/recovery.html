@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Recovery - ServerGuard{% endblock %}
+
+{% block content %}
+    <header class="topbar">
+      <h1>Recovery History</h1>
+      <div class="topbar-right">
+        <span id="conn" class="pill pill-wait">Connecting...</span>
+      </div>
+    </header>
+
+    <section class="cards cards-small">
+      <article class="card"><h2>Attempts</h2><div class="value" id="sum-total">-</div></article>
+      <article class="card state-ok"><h2>Successful</h2><div class="value" id="sum-success">-</div></article>
+      <article class="card state-crit"><h2>Failed</h2><div class="value" id="sum-failure">-</div></article>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>Recovery status</h2></div>
+      <div class="net-row"><span class="muted">Automatic recovery</span><strong id="rs-enabled">-</strong></div>
+      <div class="net-row"><span class="muted">Restart helper</span><strong id="rs-helper">-</strong></div>
+      <div class="net-row"><span class="muted">Allowlisted services</span><strong id="rs-allowlist">-</strong></div>
+      <div class="net-row"><span class="muted">Limits</span><strong id="rs-limits">-</strong></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>Attempts</h2></div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr><th>Time</th><th>Service</th><th>Trigger</th><th>Result</th><th>Details</th></tr>
+          </thead>
+          <tbody id="recovery-body"></tbody>
+        </table>
+      </div>
+      <p class="muted small">Only restarts that were actually attempted are listed.</p>
+    </section>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/recovery.js') }}"></script>
+{% endblock %}

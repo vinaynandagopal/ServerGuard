@@ -1,0 +1,30 @@
+#!/bin/bash
+# serverguard-restart - restart ONE allowlisted systemd service.
+# Installed root-owned in /usr/local/sbin and reached only through sudo.
+set -euo pipefail
+
+ALLOWLIST=/etc/serverguard/allowed-services
+NAME_RE='^[A-Za-z0-9][A-Za-z0-9@_.:-]{0,99}$'
+
+if [[ $# -ne 1 ]]; then
+    echo "usage: serverguard-restart <service>" >&2
+    exit 64
+fi
+svc="$1"
+
+if [[ ! "$svc" =~ $NAME_RE ]]; then
+    echo "invalid service name" >&2
+    exit 65
+fi
+if [[ ! -r "$ALLOWLIST" ]]; then
+    echo "allowlist not found: $ALLOWLIST" >&2
+    exit 66
+fi
+if ! grep -qxF -- "$svc" "$ALLOWLIST"; then
+    echo "service '$svc' is not on the allowlist" >&2
+    logger -t serverguard "DENIED restart of $svc (requested by ${SUDO_USER:-unknown})" || true
+    exit 77
+fi
+
+logger -t serverguard "restarting $svc (requested by ${SUDO_USER:-unknown})" || true
+exec /usr/bin/systemctl restart "$svc"

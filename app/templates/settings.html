@@ -50,7 +50,28 @@
         </div>
         <p class="muted small">
           Monitored services are managed on the <a href="/services">Services</a> page.
-          Automatic recovery settings arrive in the next phase.
+        </p>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><h2>Automatic recovery</h2></div>
+        <div class="controls">
+          <label>
+            <input type="checkbox" id="recovery_enabled">
+            Enable automatic recovery (global switch, off by default)
+          </label>
+        </div>
+        <div class="controls">
+          <label>Max automatic restarts per service per hour
+            <input type="number" id="max_restart_attempts" min="1" max="10" step="1">
+          </label>
+          <label>Minimum seconds between restarts
+            <input type="number" id="cooldown_seconds" min="10" max="3600" step="1">
+          </label>
+        </div>
+        <p class="muted small">
+          A service is restarted automatically only if this switch is on, the service has automatic recovery
+          turned on (Services page), and it is on the administrator's allowlist. The limits prevent restart loops.
         </p>
       </section>
 

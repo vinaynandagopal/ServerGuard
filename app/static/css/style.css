@@ -121,3 +121,9 @@ button:hover { background: #34508a; }
 button.danger { background: transparent; color: var(--crit); border-color: #5b2230; padding: 4px 10px; font-size: 12px; }
 button.danger:hover { background: #2a1219; }
 .msg-ok { color: var(--ok); } .msg-error { color: var(--crit); }
+
+/* ----- Phase 8: recovery ----- */
+.row-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+button.toggle-on { background: #14532d; border-color: #166534; }
+button.toggle-on:hover { background: #166534; }
+input[type="checkbox"] { width: 16px; height: 16px; }

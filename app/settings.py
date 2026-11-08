@@ -1,4 +1,4 @@
-"""Alert thresholds and monitoring interval, stored in SQLite."""
+"""Alert thresholds, recovery limits and monitoring interval, stored in SQLite."""
 
 import json
 import math
@@ -13,10 +13,16 @@ DEFAULTS = {
     "disk_warning": 80.0,
     "disk_critical": 90.0,
     "monitor_interval": 5.0,
+    "recovery_enabled": False,       # global master switch, off by default
+    "max_restart_attempts": 2.0,     # automatic restarts per service per hour
+    "cooldown_seconds": 300.0,       # minimum gap between automatic restarts
 }
 RESOURCES = ("cpu", "memory", "disk")
+BOOL_KEYS = ("recovery_enabled",)
 THRESHOLD_MAX = 100
 INTERVAL_MIN, INTERVAL_MAX = 2, 60
+ATTEMPTS_MIN, ATTEMPTS_MAX = 1, 10
+COOLDOWN_MIN, COOLDOWN_MAX = 10, 3600
 
 
 def defaults_for(config):
@@ -36,10 +42,16 @@ def _is_number(value):
 
 
 def _check_value(key, value):
-    """Return an error message, or None if the value is acceptable."""
+    """Return an error message, or None if the numeric value is acceptable."""
     if key == "monitor_interval":
         if not INTERVAL_MIN <= value <= INTERVAL_MAX:
             return f"Must be between {INTERVAL_MIN} and {INTERVAL_MAX} seconds."
+    elif key == "max_restart_attempts":
+        if value != int(value) or not ATTEMPTS_MIN <= value <= ATTEMPTS_MAX:
+            return f"Must be a whole number from {ATTEMPTS_MIN} to {ATTEMPTS_MAX}."
+    elif key == "cooldown_seconds":
+        if not COOLDOWN_MIN <= value <= COOLDOWN_MAX:
+            return f"Must be between {COOLDOWN_MIN} and {COOLDOWN_MAX} seconds."
     elif not 0 < value <= THRESHOLD_MAX:
         return f"Must be greater than 0 and at most {THRESHOLD_MAX}."
     return None
@@ -55,7 +67,10 @@ def load(db_path, defaults=None):
             value = json.loads(raw)
         except ValueError:
             continue
-        if _is_number(value) and _check_value(key, value) is None:
+        if key in BOOL_KEYS:
+            if isinstance(value, bool):
+                result[key] = value
+        elif _is_number(value) and _check_value(key, value) is None:
             result[key] = float(value)
 
     # A warning level at or above its critical level makes no sense; fall back.
@@ -77,6 +92,11 @@ def validate_update(current, updates):
     for key, value in updates.items():
         if key not in DEFAULTS:
             errors[key] = "Unknown setting."
+        elif key in BOOL_KEYS:
+            if isinstance(value, bool):
+                merged[key] = value
+            else:
+                errors[key] = "Must be true or false."
         elif not _is_number(value):
             errors[key] = "Must be a number."
         else:

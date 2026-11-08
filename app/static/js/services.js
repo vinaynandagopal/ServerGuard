@@ -40,16 +40,64 @@ function setMessage(text, isError) {
   el.className = "small " + (isError ? "msg-error" : "msg-ok");
 }
 
+// The X-ServerGuard header blocks other websites from calling state-changing endpoints.
+async function api(method, url, body) {
+  const headers = { "X-ServerGuard": "1" };
+  const options = { method, headers };
+  if (body !== undefined) {
+    headers["Content-Type"] = "application/json";
+    options.body = JSON.stringify(body);
+  }
+  const response = await fetch(url, options);
+  const data = await response.json().catch(() => ({}));
+  return { ok: response.ok, status: response.status, data };
+}
+
 async function removeService(service) {
   if (!confirm("Stop monitoring '" + service.name + "'?")) return;
   try {
-    const response = await fetch("/api/services/" + service.id, { method: "DELETE" });
-    if (!response.ok) throw new Error("HTTP " + response.status);
+    const r = await api("DELETE", "/api/services/" + service.id);
+    if (!r.ok) throw new Error("HTTP " + r.status);
     setMessage("Removed " + service.name, false);
     refresh();
   } catch (err) {
     setMessage("Could not remove the service.", true);
   }
+}
+
+async function restartService(service) {
+  if (!confirm("Restart '" + service.name + "' now?")) return;
+  setMessage("Restarting " + service.name + "...", false);
+  try {
+    const r = await api("POST", "/api/services/" + service.id + "/restart");
+    if (r.ok) setMessage(service.name + " restarted and verified running.", false);
+    else setMessage(r.data.message || "Restart failed.", true);
+    refresh();
+  } catch (err) {
+    setMessage("Could not reach the server.", true);
+  }
+}
+
+async function toggleRecovery(service) {
+  try {
+    const r = await api("PUT", "/api/services/" + service.id + "/recovery",
+      { enabled: !service.auto_recovery });
+    if (!r.ok) throw new Error(r.data.message || "HTTP " + r.status);
+    setMessage("Automatic recovery for " + service.name + " is now " +
+      (!service.auto_recovery ? "on." : "off."), false);
+    refresh();
+  } catch (err) {
+    setMessage(err.message, true);
+  }
+}
+
+function button(label, className, handler) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  if (className) btn.className = className;
+  btn.textContent = label;
+  btn.addEventListener("click", handler);
+  return btn;
 }
 
 function renderRows(services) {
@@ -80,15 +128,26 @@ function renderRows(services) {
 
     tr.appendChild(cell(fmtTime(s.last_status_change)));
     tr.appendChild(cell(String(s.failure_count), "num"));
-    tr.appendChild(cell(s.auto_recovery ? "On" : "Off"));
+
+    const recoveryTd = document.createElement("td");
+    if (s.allowlisted) {
+      recoveryTd.appendChild(button(
+        s.auto_recovery ? "On" : "Off",
+        s.auto_recovery ? "toggle-on" : "",
+        () => toggleRecovery(s),
+      ));
+    } else {
+      recoveryTd.textContent = "Not allowlisted";
+      recoveryTd.className = "muted";
+    }
+    tr.appendChild(recoveryTd);
 
     const actionTd = document.createElement("td");
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "danger";
-    btn.textContent = "Remove";
-    btn.addEventListener("click", () => removeService(s));
-    actionTd.appendChild(btn);
+    const row = document.createElement("div");
+    row.className = "row-actions";
+    if (s.allowlisted) row.appendChild(button("Restart", "", () => restartService(s)));
+    row.appendChild(button("Remove", "danger", () => removeService(s)));
+    actionTd.appendChild(row);
     tr.appendChild(actionTd);
 
     body.appendChild(tr);
@@ -117,18 +176,13 @@ $("add-form").addEventListener("submit", async (event) => {
   const name = input.value.trim();
   if (!name) return;
   try {
-    const response = await fetch("/api/services", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ service_name: name }),
-    });
-    const body = await response.json().catch(() => ({}));
-    if (response.ok) {
+    const r = await api("POST", "/api/services", { service_name: name });
+    if (r.ok) {
       input.value = "";
       setMessage("Now monitoring " + name, false);
       refresh();
     } else {
-      setMessage(body.message || "Could not add the service.", true);
+      setMessage(r.data.message || "Could not add the service.", true);
     }
   } catch (err) {
     setMessage("Could not reach the server.", true);

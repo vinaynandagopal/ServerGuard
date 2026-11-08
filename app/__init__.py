@@ -12,8 +12,10 @@ from .database.writer import MetricsWriter
 from .monitoring.collector import MetricsCollector
 from .monitoring.processes import ProcessSampler
 from .monitoring.services import ServiceMonitor, validate_service_name
+from .recovery.recovery_engine import RecoveryEngine
 from .routes import api, register_error_handlers
 from .routes_alerts import alerts_api
+from .routes_recovery import recovery_api
 
 
 def create_app(config=None, start_collector=True):
@@ -43,6 +45,12 @@ def create_app(config=None, start_collector=True):
         db_path, check_interval=app.config["SERVICE_CHECK_INTERVAL"]
     )
     process_sampler = ProcessSampler()
+    recovery_engine = RecoveryEngine(
+        db_path,
+        allowlist_file=app.config["RECOVERY_ALLOWLIST"],
+        script_path=app.config["RECOVERY_SCRIPT"],
+        sudo_bin=app.config["SUDO_BIN"],
+    )
 
     collector.add_listener(
         MetricsWriter(
@@ -53,14 +61,17 @@ def create_app(config=None, start_collector=True):
     )
     collector.add_listener(service_monitor)
     collector.add_listener(process_sampler)
-    collector.add_listener(AlertEngine(db_path))  # after the service monitor
+    collector.add_listener(AlertEngine(db_path))   # alert first ...
+    collector.add_listener(recovery_engine)        # ... then recovery
 
     app.extensions["collector"] = collector
     app.extensions["service_monitor"] = service_monitor
     app.extensions["process_sampler"] = process_sampler
+    app.extensions["recovery_engine"] = recovery_engine
 
     app.register_blueprint(api)
     app.register_blueprint(alerts_api)
+    app.register_blueprint(recovery_api)
     register_error_handlers(app)
 
     @app.get("/")
@@ -78,6 +89,10 @@ def create_app(config=None, start_collector=True):
     @app.get("/alerts")
     def alerts_page():
         return render_template("alerts.html", active="alerts")
+
+    @app.get("/recovery")
+    def recovery_page():
+        return render_template("recovery.html", active="recovery")
 
     @app.get("/settings")
     def settings_page():

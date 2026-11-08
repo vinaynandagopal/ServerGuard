@@ -148,6 +148,9 @@ def _service_view(service):
         "last_checked": service["last_checked"],
         "last_status_change": service["last_status_change"],
         "failure_count": service["failure_count"],
+        "allowlisted": current_app.extensions["recovery_engine"].is_allowlisted(
+            service["service_name"]
+        ),
     }
 
 
