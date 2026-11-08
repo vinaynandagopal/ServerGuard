@@ -1,0 +1,13 @@
+services:
+  serverguard:
+    build: .
+    image: serverguard:latest
+    container_name: serverguard
+    ports:
+      - "127.0.0.1:5000:5000"   # reachable from this machine only
+    volumes:
+      - serverguard-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  serverguard-data:
