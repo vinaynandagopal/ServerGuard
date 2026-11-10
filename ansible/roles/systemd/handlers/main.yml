@@ -1,0 +1,6 @@
+---
+- name: Restart serverguard
+  ansible.builtin.systemd:
+    name: serverguard
+    state: restarted
+    daemon_reload: true

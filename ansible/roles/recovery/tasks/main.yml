@@ -1,0 +1,20 @@
+---
+- name: Install root-owned recovery helper
+  ansible.builtin.copy:
+    src: "{{ serverguard_app_dir }}/{{ serverguard_helper_src }}"
+    remote_src: true
+    dest: "{{ serverguard_helper_dest }}"
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Sudoers rule (validated before install)
+  ansible.builtin.copy:
+    content: |
+      # Managed by Ansible: allow ONLY the restart helper, nothing else
+      {{ serverguard_user }} ALL=(root) NOPASSWD: {{ serverguard_helper_dest }}
+    dest: /etc/sudoers.d/serverguard
+    owner: root
+    group: root
+    mode: "0440"
+    validate: /usr/sbin/visudo -cf %s

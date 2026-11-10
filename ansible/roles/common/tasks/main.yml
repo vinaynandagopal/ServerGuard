@@ -1,0 +1,50 @@
+---
+- name: Install system packages
+  ansible.builtin.apt:
+    name:
+      - python3
+      - python3-venv
+      - python3-pip
+      - git
+      - nginx
+      - sudo
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Create service group
+  ansible.builtin.group:
+    name: "{{ serverguard_group }}"
+    system: true
+
+- name: Create service user (no login, no home)
+  ansible.builtin.user:
+    name: "{{ serverguard_user }}"
+    group: "{{ serverguard_group }}"
+    system: true
+    shell: /usr/sbin/nologin
+    create_home: false
+
+- name: Base directory (root-owned, world-readable)
+  ansible.builtin.file:
+    path: "{{ serverguard_base_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Data directory (only writable location for the app)
+  ansible.builtin.file:
+    path: "{{ serverguard_data_dir }}"
+    state: directory
+    owner: "{{ serverguard_user }}"
+    group: "{{ serverguard_group }}"
+    mode: "0750"
+
+- name: Config directory
+  ansible.builtin.file:
+    path: /etc/serverguard
+    state: directory
+    owner: root
+    group: "{{ serverguard_group }}"
+    mode: "0750"

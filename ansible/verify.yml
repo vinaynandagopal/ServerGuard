@@ -1,0 +1,50 @@
+---
+- name: Verify ServerGuard deployment
+  hosts: serverguard
+  become: true
+  tasks:
+    - name: Dashboard answers through nginx
+      ansible.builtin.uri:
+        url: "http://{{ serverguard_nginx_listen }}/"
+        status_code: 200
+
+    - name: API answers directly on gunicorn
+      ansible.builtin.uri:
+        url: "http://{{ serverguard_bind_host }}:{{ serverguard_bind_port }}/"
+        status_code: 200
+
+    - name: List listening TCP sockets
+      ansible.builtin.command: ss -H -ltn
+      register: listeners
+      changed_when: false
+
+    - name: Nothing exposes ports 5000/8080/80 on a non-loopback address
+      ansible.builtin.assert:
+        that: >-
+          listeners.stdout_lines
+          | select('search', '(0\.0\.0\.0|\*|\[::\]):(5000|8080|80)\s')
+          | list | length == 0
+        fail_msg: "Dashboard or nginx is listening publicly!"
+
+    - name: Helper is root-owned and not writable by others
+      ansible.builtin.stat:
+        path: "{{ serverguard_helper_dest }}"
+      register: helper
+
+    - name: Assert helper ownership and mode
+      ansible.builtin.assert:
+        that:
+          - helper.stat.pw_name == 'root'
+          - helper.stat.mode == '0755'
+
+    - name: serverguard user may NOT sudo arbitrary commands
+      ansible.builtin.command: sudo -u {{ serverguard_user }} sudo -n /bin/true
+      register: bad_sudo
+      failed_when: bad_sudo.rc == 0
+      changed_when: false
+
+    - name: serverguard user MAY run the helper (rule listed)
+      ansible.builtin.command: sudo -l -U {{ serverguard_user }}
+      register: sudo_list
+      changed_when: false
+      failed_when: serverguard_helper_dest not in sudo_list.stdout

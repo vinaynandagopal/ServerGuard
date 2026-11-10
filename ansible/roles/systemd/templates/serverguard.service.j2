@@ -1,0 +1,19 @@
+# Managed by Ansible
+[Unit]
+Description=ServerGuard monitoring dashboard
+After=network.target
+
+[Service]
+User={{ serverguard_user }}
+Group={{ serverguard_group }}
+WorkingDirectory={{ serverguard_app_dir }}
+EnvironmentFile={{ serverguard_env_file }}
+ExecStart={{ serverguard_venv_dir }}/bin/gunicorn --bind {{ serverguard_bind_host }}:{{ serverguard_bind_port }} --workers 1 --threads 4 run:app
+Restart=on-failure
+RestartSec=3
+# Deliberately NOT setting NoNewPrivileges: sudo (recovery helper) needs it off.
+PrivateTmp=true
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

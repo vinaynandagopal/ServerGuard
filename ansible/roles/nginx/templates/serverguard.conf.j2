@@ -1,0 +1,11 @@
+# Managed by Ansible. Loopback only: the dashboard has no login.
+server {
+    listen {{ serverguard_nginx_listen }};
+    server_name _;
+
+    location / {
+        proxy_pass http://{{ serverguard_bind_host }}:{{ serverguard_bind_port }};
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}

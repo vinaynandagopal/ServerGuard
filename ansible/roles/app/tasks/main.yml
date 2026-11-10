@@ -1,0 +1,29 @@
+---
+- name: Fetch application code
+  ansible.builtin.git:
+    repo: "{{ serverguard_repo_url }}"
+    dest: "{{ serverguard_app_dir }}"
+    version: "{{ serverguard_repo_version }}"
+  notify: Restart serverguard
+
+- name: Install Python dependencies into virtualenv
+  ansible.builtin.pip:
+    requirements: "{{ serverguard_app_dir }}/requirements.txt"
+    virtualenv: "{{ serverguard_venv_dir }}"
+    virtualenv_command: python3 -m venv
+  notify: Restart serverguard
+
+- name: Install gunicorn (production WSGI server)
+  ansible.builtin.pip:
+    name: gunicorn
+    virtualenv: "{{ serverguard_venv_dir }}"
+  notify: Restart serverguard
+
+- name: Environment file
+  ansible.builtin.template:
+    src: serverguard.env.j2
+    dest: "{{ serverguard_env_file }}"
+    owner: root
+    group: "{{ serverguard_group }}"
+    mode: "0640"
+  notify: Restart serverguard

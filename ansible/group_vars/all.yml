@@ -1,0 +1,31 @@
+---
+serverguard_user: serverguard
+serverguard_group: serverguard
+serverguard_base_dir: /opt/serverguard
+serverguard_app_dir: "{{ serverguard_base_dir }}/app"
+serverguard_venv_dir: "{{ serverguard_base_dir }}/venv"
+serverguard_data_dir: /var/lib/serverguard
+serverguard_env_file: /etc/serverguard/serverguard.env
+
+# Public repo URL. For a private repo, use a deploy key or clone via SSH.
+serverguard_repo_url: "https://github.com/<you>/ServerGuard.git"
+serverguard_repo_version: main
+
+serverguard_bind_host: 127.0.0.1
+serverguard_bind_port: 5000
+serverguard_nginx_listen: "127.0.0.1:8080"
+
+serverguard_helper_src: scripts/serverguard-restart
+serverguard_helper_dest: /usr/local/sbin/serverguard-restart
+
+# Environment variables passed to the app. Matches app/config.py names.
+serverguard_env:
+  SERVERGUARD_HOST: "{{ serverguard_bind_host }}"
+  SERVERGUARD_PORT: "{{ serverguard_bind_port }}"
+  SERVERGUARD_DB: "{{ serverguard_data_dir }}/serverguard.db"
+  SERVERGUARD_DB_SAVE_INTERVAL: "10"
+  SERVERGUARD_RETENTION_DAYS: "7"
+  SERVERGUARD_SERVICE_INTERVAL: "10"
+  SERVERGUARD_ALLOWLIST: /etc/serverguard/allowed-services
+  SERVERGUARD_RECOVERY_SCRIPT: "{{ serverguard_helper_dest }}"
+  SERVERGUARD_SUDO: sudo

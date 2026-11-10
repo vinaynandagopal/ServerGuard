@@ -1,0 +1,16 @@
+---
+- name: Install systemd unit
+  ansible.builtin.template:
+    src: serverguard.service.j2
+    dest: /etc/systemd/system/serverguard.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart serverguard
+
+- name: Enable and start serverguard
+  ansible.builtin.systemd:
+    name: serverguard
+    enabled: true
+    state: started
+    daemon_reload: true
