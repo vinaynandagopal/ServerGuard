@@ -6,3 +6,12 @@ __pycache__/
 .pytest_cache/
 .env
 data/
+
+# Terraform / Ansible-generated
+.terraform/
+*.tfstate
+*.tfstate.*
+terraform.tfvars
+crash.log
+ansible/inventory/aws.ini
+*.pem
