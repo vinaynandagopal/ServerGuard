@@ -37,13 +37,13 @@
           - helper.stat.pw_name == 'root'
           - helper.stat.mode == '0755'
 
-    - name: serverguard user may NOT sudo arbitrary commands
+    - name: Serverguard user may NOT sudo arbitrary commands
       ansible.builtin.command: sudo -u {{ serverguard_user }} sudo -n /bin/true
       register: bad_sudo
       failed_when: bad_sudo.rc == 0
       changed_when: false
 
-    - name: serverguard user MAY run the helper (rule listed)
+    - name: Serverguard user MAY run the helper (rule listed)
       ansible.builtin.command: sudo -l -U {{ serverguard_user }}
       register: sudo_list
       changed_when: false
