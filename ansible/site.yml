@@ -2,8 +2,8 @@
 - name: Deploy ServerGuard
   hosts: serverguard
   roles:
-    - { role: common,   tags: [common] }
-    - { role: app,      tags: [app] }
+    - { role: common, tags: [common] }
+    - { role: app, tags: [app] }
     - { role: recovery, tags: [recovery] }
-    - { role: systemd,  tags: [systemd] }
-    - { role: nginx,    tags: [nginx] }
+    - { role: systemd, tags: [systemd] }
+    - { role: nginx, tags: [nginx] }
