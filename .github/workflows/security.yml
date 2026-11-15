@@ -1,0 +1,41 @@
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 3 * * 1"      # weekly: new CVEs appear even when the code doesn't change
+
+permissions:
+  contents: read
+
+jobs:
+  code-and-dependencies:
+    name: Bandit and pip-audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install scanners
+        run: pip install bandit pip-audit
+      - name: Bandit (static analysis, medium and above)
+        run: bandit -r app -ll
+      - name: pip-audit (known vulnerabilities in dependencies)
+        run: pip-audit -r requirements.txt
+
+  container-scan:
+    name: Trivy image scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the image
+        run: docker build -t serverguard:scan .
+      - name: Trivy
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            aquasec/trivy:0.54.1 image \
+            --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 \
+            serverguard:scan
