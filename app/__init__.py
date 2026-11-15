@@ -15,6 +15,7 @@ from .monitoring.services import ServiceMonitor, validate_service_name
 from .recovery.recovery_engine import RecoveryEngine
 from .routes import api, register_error_handlers
 from .routes_alerts import alerts_api
+from .routes_metrics import prom
 from .routes_recovery import recovery_api
 
 
@@ -71,6 +72,7 @@ def create_app(config=None, start_collector=True):
 
     app.register_blueprint(api)
     app.register_blueprint(alerts_api)
+    app.register_blueprint(prom)
     app.register_blueprint(recovery_api)
     register_error_handlers(app)
 

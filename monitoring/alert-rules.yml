@@ -1,0 +1,18 @@
+groups:
+  - name: serverguard
+    rules:
+      - alert: ServerGuardDown
+        expr: up{job="serverguard"} == 0
+        for: 1m
+        labels: {severity: critical}
+        annotations: {summary: "ServerGuard is not reachable"}
+      - alert: ServiceDown
+        expr: serverguard_service_up == 0
+        for: 30s
+        labels: {severity: critical}
+        annotations: {summary: "Service {{ $labels.service }} is down"}
+      - alert: HighCpu
+        expr: serverguard_cpu_usage_percent > 85
+        for: 1m
+        labels: {severity: warning}
+        annotations: {summary: "CPU above 85% for 1 minute"}
